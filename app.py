@@ -2,6 +2,32 @@ import streamlit as st
 import pandas as pd
 import io
 import base64
+from PIL import Image
+
+logo = Image.open("logo.png")
+
+# Set page config with custom icon
+st.set_page_config(
+    page_title="IITB-Seat Mapping System",
+    page_icon=logo,  # Use the logo image as favicon
+)
+
+def get_base64_logo(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+def display_logo_centered(image_path, width=200):
+    img_base64 = get_base64_logo(image_path)
+    st.markdown(
+        f"""
+        <div style='text-align: center; padding-bottom: 10px;'>
+            <img src='data:image/png;base64,{img_base64}' width="{width}" />
+            <h3>IITB Seat Mapping System</h3>
+            <br>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def allocate_seats(student_file_content, seats_la_lc_lh, seats_cc_kr, room_constraints):
     """Allocates seats based on student data and room constraints."""
@@ -77,8 +103,19 @@ def allocate_seats(student_file_content, seats_la_lc_lh, seats_cc_kr, room_const
         st.error(f"An error occurred: {e}")
         return None
 
+def get_table_download_link(df):
+    """Generates a download link for a dataframe as Excel."""
+    towrite = io.BytesIO()
+    df.to_excel(towrite, index=False, header=True)
+    towrite = towrite.getvalue()
+    b64 = base64.b64encode(towrite).decode()
+    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="allocated_seats.xlsx">Download Excel file</a>'
+    return href
+
 def main():
-    st.title("IITB Seat Mapping System")
+    display_logo_centered("logo.png", width=200)  # Centered logo at the top
+
+    # st.title("IIT Bombay Seat Mapping System")
 
     student_file = st.file_uploader("Upload Student Data (Excel file)", type=["xlsx"])
     seats_la_lc_lh = st.file_uploader("Upload LA/LC/LH Seat Data (LA_LC_LH_final.xlsx)", type=["xlsx"])
@@ -91,6 +128,8 @@ def main():
             "CC 101", "CC 105", "KR 125", "KR 225", "CC 103"
         ]
 
+        available_colors = ["Yellow", "Blue", "Green", "Red"]
+
         num_rooms = st.number_input("🔹 How many rooms do you want to specify?", min_value=0, step=1, value=1)
         room_constraints = {}
 
@@ -99,9 +138,9 @@ def main():
             room = st.selectbox(f"Select Room Number:", rooms, key=f"room_{i}")
 
             if room.startswith(("LA", "LC", "LH")):
-                left_colors = [c.strip() for c in st.text_input(f"Enter allowed colors for {room} (Left), comma-separated: ", key=f"left_{i}").split(",") if c.strip()]
-                middle_colors = [c.strip() for c in st.text_input(f"Enter allowed colors for {room} (Middle), comma-separated: ", key=f"middle_{i}").split(",") if c.strip()]
-                right_colors = [c.strip() for c in st.text_input(f"Enter allowed colors for {room} (Right), comma-separated: ", key=f"right_{i}").split(",") if c.strip()]
+                left_colors = st.multiselect(f"Select allowed colors for {room} (Left):", available_colors, key=f"left_{i}")
+                middle_colors = st.multiselect(f"Select allowed colors for {room} (Middle):", available_colors, key=f"middle_{i}")
+                right_colors = st.multiselect(f"Select allowed colors for {room} (Right):", available_colors, key=f"right_{i}")
 
                 room_constraints[room] = {
                     "Left": left_colors,
@@ -120,15 +159,6 @@ def main():
                 st.dataframe(df_final)
                 st.markdown(get_table_download_link(df_final), unsafe_allow_html=True)
                 st.success("Seat allocation completed!")
-
-def get_table_download_link(df):
-    """Generates a download link for a dataframe as Excel."""
-    towrite = io.BytesIO()
-    df.to_excel(towrite, index=False, header=True)
-    towrite = towrite.getvalue()
-    b64 = base64.b64encode(towrite).decode()
-    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="allocated_seats.xlsx">Download Excel file</a>'
-    return href
 
 if __name__ == "__main__":
     main()
