@@ -1,4 +1,5 @@
 import streamlit as st
+st.write("App started!")
 import pandas as pd
 import io
 import base64
